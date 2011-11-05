@@ -1,17 +1,15 @@
 package gocheck_test
 
 import (
+	"errors"
 	"launchpad.net/gocheck"
-	"os"
 	"reflect"
 	"runtime"
 )
 
-
 type CheckersS struct{}
 
 var _ = gocheck.Suite(&CheckersS{})
-
 
 func testInfo(c *gocheck.C, checker gocheck.Checker, name string, paramNames []string) {
 	info := checker.Info()
@@ -50,8 +48,8 @@ func (s *CheckersS) TestIsNil(c *gocheck.C) {
 
 	testCheck(c, gocheck.IsNil, true, "", (chan int)(nil), nil)
 	testCheck(c, gocheck.IsNil, false, "", make(chan int), nil)
-	testCheck(c, gocheck.IsNil, true, "", (os.Error)(nil), nil)
-	testCheck(c, gocheck.IsNil, false, "", os.NewError(""), nil)
+	testCheck(c, gocheck.IsNil, true, "", (error)(nil), nil)
+	testCheck(c, gocheck.IsNil, false, "", errors.New(""), nil)
 	testCheck(c, gocheck.IsNil, true, "", ([]int)(nil), nil)
 	testCheck(c, gocheck.IsNil, false, "", make([]int, 1), nil)
 	testCheck(c, gocheck.IsNil, false, "", int(0), nil)
@@ -65,8 +63,8 @@ func (s *CheckersS) TestNotNil(c *gocheck.C) {
 
 	testCheck(c, gocheck.NotNil, false, "", (chan int)(nil))
 	testCheck(c, gocheck.NotNil, true, "", make(chan int))
-	testCheck(c, gocheck.NotNil, false, "", (os.Error)(nil))
-	testCheck(c, gocheck.NotNil, true, "", os.NewError(""))
+	testCheck(c, gocheck.NotNil, false, "", (error)(nil))
+	testCheck(c, gocheck.NotNil, true, "", errors.New(""))
 	testCheck(c, gocheck.NotNil, false, "", ([]int)(nil))
 	testCheck(c, gocheck.NotNil, true, "", make([]int, 1))
 }
@@ -77,7 +75,6 @@ func (s *CheckersS) TestNot(c *gocheck.C) {
 	testCheck(c, gocheck.Not(gocheck.IsNil), false, "", nil)
 	testCheck(c, gocheck.Not(gocheck.IsNil), true, "", "a")
 }
-
 
 type simpleStruct struct {
 	i int
@@ -121,8 +118,8 @@ func (s *CheckersS) TestMatches(c *gocheck.C) {
 	testCheck(c, gocheck.Matches, false, "", "abc", "bc")
 
 	// String()-enabled values accepted
-	testCheck(c, gocheck.Matches, true, "", os.NewError("abc"), "a.c")
-	testCheck(c, gocheck.Matches, false, "", os.NewError("abc"), "a.d")
+	testCheck(c, gocheck.Matches, true, "", errors.New("abc"), "a.c")
+	testCheck(c, gocheck.Matches, false, "", errors.New("abc"), "a.d")
 
 	// Some error conditions.
 	testCheck(c, gocheck.Matches, false, "Obtained value is not a string and has no .String()", 1, "a.c")
@@ -138,20 +135,20 @@ func (s *CheckersS) TestPanics(c *gocheck.C) {
 	testCheck(c, gocheck.Panics, true, "", func() bool { panic("BOOM") }, "BOOM", true, "")
 
 	// Error values.
-	testCheck(c, gocheck.Panics, true, "", func() { panic(os.NewError("BOOM")) }, os.NewError("BOOM"), true, "")
-	testCheck(c, gocheck.Panics, false, "", func() { panic(os.NewError("KABOOM")) }, os.NewError("BOOM"), false, "")
+	testCheck(c, gocheck.Panics, true, "", func() { panic(errors.New("BOOM")) }, errors.New("BOOM"), true, "")
+	testCheck(c, gocheck.Panics, false, "", func() { panic(errors.New("KABOOM")) }, errors.New("BOOM"), false, "")
 
 	// String matching.
-	testCheck(c, gocheck.Panics, true, "", func() { panic(os.NewError("BOOM")) }, "BO.M", true, "")
-	testCheck(c, gocheck.Panics, false, "", func() { panic(os.NewError("KABOOM")) }, "BO.M", false, "")
+	testCheck(c, gocheck.Panics, true, "", func() { panic(errors.New("BOOM")) }, "BO.M", true, "")
+	testCheck(c, gocheck.Panics, false, "", func() { panic(errors.New("KABOOM")) }, "BO.M", false, "")
 
 	// Some errors.
 	testCheck(c, gocheck.Panics, false, "Function has not panicked", func() bool { return false }, "BOOM")
 	testCheck(c, gocheck.Panics, false, "Function must take zero arguments", 1, "BOOM")
 
 	// Verify params/names mutation
-	params, names := testCheck(c, gocheck.Panics, false, "", func() { panic(os.NewError("KABOOM")) }, os.NewError("BOOM"), false, "")
-	c.Assert(params[0], gocheck.Equals, os.NewError("KABOOM"))
+	params, names := testCheck(c, gocheck.Panics, false, "", func() { panic(errors.New("KABOOM")) }, errors.New("BOOM"), false, "")
+	c.Assert(params[0], gocheck.Equals, errors.New("KABOOM"))
 	c.Assert(names[0], gocheck.Equals, "panic")
 }
 
@@ -163,9 +160,9 @@ func (s *CheckersS) TestFitsTypeOf(c *gocheck.C) {
 	testCheck(c, gocheck.FitsTypeOf, false, "", 1, int64(0))
 
 	// Aliases
-	testCheck(c, gocheck.FitsTypeOf, false, "", 1, os.NewError(""))
-	testCheck(c, gocheck.FitsTypeOf, false, "", "error", os.NewError(""))
-	testCheck(c, gocheck.FitsTypeOf, true, "", os.NewError("error"), os.NewError(""))
+	testCheck(c, gocheck.FitsTypeOf, false, "", 1, errors.New(""))
+	testCheck(c, gocheck.FitsTypeOf, false, "", "error", errors.New(""))
+	testCheck(c, gocheck.FitsTypeOf, true, "", errors.New("error"), errors.New(""))
 
 	// Structures
 	testCheck(c, gocheck.FitsTypeOf, false, "", 1, simpleStruct{})
@@ -181,13 +178,13 @@ func (s *CheckersS) TestFitsTypeOf(c *gocheck.C) {
 func (s *CheckersS) TestImplements(c *gocheck.C) {
 	testInfo(c, gocheck.Implements, "Implements", []string{"obtained", "ifaceptr"})
 
-	var e os.Error
+	var e error
 	var re runtime.Error
-	testCheck(c, gocheck.Implements, true, "", os.NewError(""), &e)
-	testCheck(c, gocheck.Implements, false, "", os.NewError(""), &re)
+	testCheck(c, gocheck.Implements, true, "", errors.New(""), &e)
+	testCheck(c, gocheck.Implements, false, "", errors.New(""), &re)
 
 	// Some bad values
-	testCheck(c, gocheck.Implements, false, "ifaceptr should be a pointer to an interface variable", 0, os.NewError(""))
+	testCheck(c, gocheck.Implements, false, "ifaceptr should be a pointer to an interface variable", 0, errors.New(""))
 	testCheck(c, gocheck.Implements, false, "ifaceptr should be a pointer to an interface variable", 0, interface{}(nil))
 	testCheck(c, gocheck.Implements, false, "", interface{}(nil), &e)
 }
