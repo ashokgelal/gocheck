@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"go/ast"
 	"go/parser"
-	"go/token"
 	"go/printer"
+	"go/token"
 	"os"
 )
 
